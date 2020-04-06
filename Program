@@ -1,0 +1,207 @@
+1.	// Includes the Servo library
+2.	#include <Servo.h>. 
+3.	
+4.	// Defines Tirg and Echo pins of the Ultrasonic Sensor
+5.	const int trigPin = 10;
+6.	const int echoPin = 11;
+7.	// Variables for the duration and the distance
+8.	long duration;
+9.	int distance;
+10.	
+11.	Servo myServo; // Creates a servo object for controlling the servo motor
+12.	
+13.	void setup() {
+14.	pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+15.	pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+16.	Serial.begin(9600);
+17.	myServo.attach(12); // Defines on which pin is the servo motor attached
+18.	}
+19.	void loop() {
+20.	// rotates the servo motor from 15 to 165 degrees
+21.	for(int i=15;i<=165;i++){ 
+22.	myServo.write(i);
+23.	delay(30);
+24.	distance = calculateDistance();// Calls a function for calculating the distance measured by the Ultrasonic sensor for each degree
+25.	
+26.	Serial.print(i); // Sends the current degree into the Serial Port
+27.	Serial.print(","); // Sends addition character right next to the previous value needed later in the Processing IDE for indexing
+28.	Serial.print(distance); // Sends the distance value into the Serial Port
+29.	Serial.print("."); // Sends addition character right next to the previous value needed later in the Processing IDE for indexing
+30.	}
+31.	// Repeats the previous lines from 165 to 15 degrees
+32.	for(int i=165;i>15;i--){ 
+33.	myServo.write(i);
+34.	delay(30);
+35.	distance = calculateDistance();
+36.	Serial.print(i);
+37.	Serial.print(",");
+38.	Serial.print(distance);
+39.	Serial.print(".");
+40.	}
+41.	}
+42.	// Function for calculating the distance measured by the Ultrasonic sensor
+43.	int calculateDistance(){ 
+44.	
+45.	digitalWrite(trigPin, LOW); 
+46.	delayMicroseconds(2);
+47.	// Sets the trigPin on HIGH state for 10 micro seconds
+48.	digitalWrite(trigPin, HIGH); 
+49.	delayMicroseconds(10);
+50.	digitalWrite(trigPin, LOW);
+51.	duration = pulseIn(echoPin, HIGH); // Reads the echoPin, returns the sound wave travel time in microseconds
+52.	distance= duration*0.034/2;
+53.	return distance;
+54.	}
+
+
+Here’s the complete Processing Source Code of the Arduino Radar:
+
+1.	import processing.serial.*; // imports library for serial communication
+2.	import java.awt.event.KeyEvent; // imports library for reading the data from the serial port
+3.	import java.io.IOException;
+4.	
+5.	Serial myPort; // defines Object Serial
+6.	// defubes variables
+7.	String angle="";
+8.	String distance="";
+9.	String data="";
+10.	String noObject;
+11.	float pixsDistance;
+12.	int iAngle, iDistance;
+13.	int index1=0;
+14.	int index2=0;
+15.	PFont orcFont;
+16.	
+17.	void setup() {
+18.	
+19.	size (1920, 1080);
+20.	smooth();
+21.	myPort = new Serial(this,"COM4", 9600); // starts the serial communication
+22.	myPort.bufferUntil('.'); // reads the data from the serial port up to the character '.'. So actually it reads this: angle,distance.
+23.	orcFont = loadFont("OCRAExtended-30.vlw");
+24.	}
+25.	
+26.	void draw() {
+27.	
+28.	fill(98,245,31);
+29.	textFont(orcFont);
+30.	// simulating motion blur and slow fade of the moving line
+31.	noStroke();
+32.	fill(0,4); 
+33.	rect(0, 0, width, 1010); 
+34.	
+35.	fill(98,245,31); // green color
+36.	// calls the functions for drawing the radar
+37.	drawRadar(); 
+38.	drawLine();
+39.	drawObject();
+40.	drawText();
+41.	}
+42.	
+43.	void serialEvent (Serial myPort) { // starts reading data from the Serial Port
+44.	// reads the data from the Serial Port up to the character '.' and puts it into the String variable "data".
+45.	data = myPort.readStringUntil('.');
+46.	data = data.substring(0,data.length()-1);
+47.	
+48.	index1 = data.indexOf(","); // find the character ',' and puts it into the variable "index1"
+49.	angle= data.substring(0, index1); // read the data from position "0" to position of the variable index1 or thats the value of the angle the Arduino Board sent into the Serial Port
+50.	distance= data.substring(index1+1, data.length()); // read the data from position "index1" to the end of the data pr thats the value of the distance
+51.	
+52.	// converts the String variables into Integer
+53.	iAngle = int(angle);
+54.	iDistance = int(distance);
+55.	}
+56.	
+57.	void drawRadar() {
+58.	pushMatrix();
+59.	translate(960,1000); // moves the starting coordinats to new location
+60.	noFill();
+61.	strokeWeight(2);
+62.	stroke(98,245,31);
+63.	// draws the arc lines
+64.	arc(0,0,1800,1800,PI,TWO_PI);
+65.	arc(0,0,1400,1400,PI,TWO_PI);
+66.	arc(0,0,1000,1000,PI,TWO_PI);
+67.	arc(0,0,600,600,PI,TWO_PI);
+68.	// draws the angle lines
+69.	line(-960,0,960,0);
+70.	line(0,0,-960*cos(radians(30)),-960*sin(radians(30)));
+71.	line(0,0,-960*cos(radians(60)),-960*sin(radians(60)));
+72.	line(0,0,-960*cos(radians(90)),-960*sin(radians(90)));
+73.	line(0,0,-960*cos(radians(120)),-960*sin(radians(120)));
+74.	line(0,0,-960*cos(radians(150)),-960*sin(radians(150)));
+75.	line(-960*cos(radians(30)),0,960,0);
+76.	popMatrix();
+77.	}
+78.	
+79.	void drawObject() {
+80.	pushMatrix();
+81.	translate(960,1000); // moves the starting coordinats to new location
+82.	strokeWeight(9);
+83.	stroke(255,10,10); // red color
+84.	pixsDistance = iDistance*22.5; // covers the distance from the sensor from cm to pixels
+85.	// limiting the range to 40 cms
+86.	if(iDistance<40){
+87.	// draws the object according to the angle and the distance
+88.	line(pixsDistance*cos(radians(iAngle)),-pixsDistance*sin(radians(iAngle)),950*cos(radians(iAngle)),-950*sin(radians(iAngle)));
+89.	}
+90.	popMatrix();
+91.	}
+92.	
+93.	void drawLine() {
+94.	pushMatrix();
+95.	strokeWeight(9);
+96.	stroke(30,250,60);
+97.	translate(960,1000); // moves the starting coordinats to new location
+98.	line(0,0,950*cos(radians(iAngle)),-950*sin(radians(iAngle))); // draws the line according to the angle
+99.	popMatrix();
+100.	}
+101.	
+102.	void drawText() { // draws the texts on the screen
+103.	
+104.	pushMatrix();
+105.	if(iDistance>40) {
+106.	noObject = "Out of Range";
+107.	}
+108.	else {
+109.	noObject = "In Range";
+110.	}
+111.	fill(0,0,0);
+112.	noStroke();
+113.	rect(0, 1010, width, 1080);
+114.	fill(98,245,31);
+115.	textSize(25);
+116.	text("10cm",1180,990);
+117.	text("20cm",1380,990);
+118.	text("30cm",1580,990);
+119.	text("40cm",1780,990);
+120.	textSize(40);
+121.	text("Object: " + noObject, 240, 1050);
+122.	text("Angle: " + iAngle +" °", 1050, 1050);
+123.	text("Distance: ", 1380, 1050);
+124.	if(iDistance<40) {
+125.	text(" " + iDistance +" cm", 1400, 1050);
+126.	}
+127.	textSize(25);
+128.	fill(98,245,60);
+129.	translate(961+960*cos(radians(30)),982-960*sin(radians(30)));
+130.	rotate(-radians(-60));
+131.	text("30°",0,0);
+132.	resetMatrix();
+133.	translate(954+960*cos(radians(60)),984-960*sin(radians(60)));
+134.	rotate(-radians(-30));
+135.	text("60°",0,0);
+136.	resetMatrix();
+137.	translate(945+960*cos(radians(90)),990-960*sin(radians(90)));
+138.	rotate(radians(0));
+139.	text("90°",0,0);
+140.	resetMatrix();
+141.	translate(935+960*cos(radians(120)),1003-960*sin(radians(120)));
+142.	rotate(radians(-30));
+143.	text("120°",0,0);
+144.	resetMatrix();
+145.	translate(940+960*cos(radians(150)),1018-960*sin(radians(150)));
+146.	rotate(radians(-60));
+147.	text("150°",0,0);
+148.	popMatrix(); 
+149.	}
